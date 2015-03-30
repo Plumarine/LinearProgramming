@@ -1,4 +1,3 @@
-__author__ = 'Ma7aseem'
 # Simplex algorithm pivoting tool by Abdulla Almansoori
 # Use this as a test input: simplex('x + y', 'x y', '2x + y <= 4', 'x + 2y <= 4')
 # or this simplex("x + y - z", "x y z xyz", "2x + y - xyz <= 4", "x + 2y +10*z <= 4", "5>= .7 y - xyz")
