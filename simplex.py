@@ -1,8 +1,9 @@
-__author__ = 'Ma7aseem'
-# Simplex algorithm pivoting tool by Abdulla Almansoori
-# Use this as a test input: simplex('x + y', 'x y', '2x + y <= 4', 'x + 2y <= 4')
-# or this simplex("x + y - z", "x y z xyz", "2x + y - xyz <= 4", "x + 2y +10*z <= 4", "5>= .7 y - xyz")
-# or this simplex("3xcococo+5x22", "xcococo x22", "xcococo<=4", "2x22<=12", "3*xcococo+2x22<=18")
+# Simplex algorithm pivoting tool by Abdulla Almansoori 2015 (C)
+# Use this as a test input: simplex('x + y', 'x y', '2x + y <= 4', 'x + 2y <= 4') WORKS
+# or this simplex("x + y - z", "x y z xyz", "2x + y - xyz <= 4", "x + 2y +10*z <= 4", "5>= .7 y - xyz") WORKS
+# or this simplex("3xcococo+5x22", "xcococo x22", "xcococo<=4", "2x22<=12", "3*xcococo+2x22<=18") WORKS
+# or simplex('4x1+3x2', "x1 x2", "2x1+3x2<=6", "-3x1+2x2<=3", "2x2<=5", "2x1+x2<=4") WORKS
+# or simplex('-2x1-x2', "x1 x2", "-x1+x2<=-1", "-x1-2x2<=-2", "x2<=1") INFEASIBLE ORIGIN WORKS
 
 import time
 import re
@@ -94,19 +95,22 @@ def simplex(objective, variables, *constraints):
                 if expr[i] == "+" or expr[i] == "-" or expr[i] == "=":
                     skip = False
             elif expr[i].isalpha():
-                expr = expr[0:i] + " " + expr[i:]  # or "*" in case the user wants a "*" between numbers and variables
+                expr = expr[0:i] + " " + expr[i:]
                 skip = True
             i += 1
 
-        if expr[0] == " ":
-            expr = expr[1:]
+        expr = expr.replace("<", " <")
+        expr = expr.replace(">", " >")
+        expr = expr.replace("+"," +")
+        expr = expr.replace("-"," -")
 
-        expr = expr.replace("<=", " <= ")
-        expr = expr.replace(">=", " >= ")
-        expr = expr.replace("+"," + ")
-        expr = expr.replace("-"," - ")
-        #expr = expr.replace("**"," *")  # In case the user wants the "*" format
-        #expr = expr.replace("*"," * ")  # In case the user wants the "*" format
+        i = 0
+        while i < len(expr):
+            if expr[i] == " ":
+                i += 1
+            else:
+                expr = expr[i:]
+                i = len(expr)  # Break
 
         return expr
 
@@ -263,36 +267,89 @@ def simplex(objective, variables, *constraints):
     start_algorithm = time.time()
     optimum = False
     unbounded = False
+    infeasible = False
+    numpivots = 0
     step = 1
+
+    '''
+    # Transpose Negative (Dual)
+    simdual = [[0 for x in range(1+numconst)] for x in range(2+numvar+numconst)]
+    m = 0
+    while m < len(sim):
+        n = 0
+        while n < len(sim[0]):
+            simdual[n][m] = - sim[m][n]
+            n += 1
+        m += 1
+
+    sim = simdual
+    '''
+
     if not errors:
         while not optimum and not unbounded:
+            # Check if infeasible origin
+            if step == 1:
+                if any((True for row in sim[:-1] if row[-1] < 0)):
+                    infeasible = True
+                    original_obj = sim[-1]
+                else:
+                    infeasible = False
+
             # Check if optimum
-            if any((True for x in sim[-1] if x < 0)):  # If there is any negative values on P row
-                # Show tableau before doing simplex
+            if any((True for x in sim[-1][:-2] if x < 0)) or step == 1:  # Check if optimum, or origin
                 show_tab(sim, vartab, basic, step, precision)
                 step += 1
 
-                # Simplex
-                enter = sim[-1].index(min(sim[-1]))
-                m = 0
                 maxratio = 0
+                # Simplex
+                # If origin infeasible, do this once (after showing first tableau)
+                if infeasible and step == 2:
+                    print("Infeasible origin")
+                    print("Add artificial variable x!")
+                    print("Sub-problem objective: minimize x!\n")
+                    vartab = ['x!'] + vartab
+                    i = 0
+                    while i < len(sim) - 1:
+                        sim[i] = [-1] + sim[i]
+                        if sim[i][-1] < maxratio:
+                            maxratio = sim[i][-1]
+                            leave = i
+                        i += 1
+                    sim[-1] = [1] + (numvar + numconst) * [0] + [1, 0]
+                    enter = 0  # artificial variable is always entering
 
-                # Assume unbounded until a positive value in the entering column is found
-                unbounded = True
-                # Check ratios (and if unbounded)
-                while m < numconst:
-                    if sim[m][enter] > 0:
-                        ratio = sim[m][enter] / sim[m][-1]
-                        unbounded = False
-                    else:
-                        ratio = 0
-                    if maxratio < ratio:
-                        maxratio = ratio
-                        leave = m
-                    m += 1
+                    show_tab(sim, vartab, basic, step, precision)
+                    step += 1
 
+                    print("Entering variable: %s" % vartab[enter])
+                    print("Leaving variable: %s\n" % basic[leave])
+                    basic[leave] = vartab[enter]  # Update basic variables
+                    numpivots += 1
+
+                # Choose entering and leaving variables according to simplex algorithm
+                else:
+                    enter = sim[-1].index(min(sim[-1][:-2]))  # Max obj coeff (in sim, obj function is negative)
+                    # Assume unbounded until a positive value in the entering column is found
+                    unbounded = True
+                    # Check ratios (and also check if unbounded)
+                    m = 0
+                    while m < len(sim) - 1:
+                        if sim[m][enter] > 0:
+                            if sim[m][-1] == 0:
+                                ratio = 0
+                            else:
+                                ratio = sim[m][enter] / sim[m][-1]
+                            if unbounded:
+                                unbounded = False
+                        else:
+                            ratio = 0
+                        if maxratio < ratio:
+                            maxratio = ratio
+                            leave = m
+                        m += 1
+
+                # If everything was fine and problem is bounded, do the row and column operations
                 if not unbounded:
-
                     # leaving row: divide pivot row by pivot
                     pivot = sim[leave][enter]
                     sim[leave] = [val / pivot for val in sim[leave]]
@@ -308,30 +365,65 @@ def simplex(objective, variables, *constraints):
                                 n += 1
                         m += 1
 
-                print("Entering variable: %s" % vartab[enter])
-                print("Leaving variable: %s\n" % basic[leave])
-                basic[leave] = vartab[enter]  # Update basic variables
+                    if not (infeasible and step == 3):  # Because we already showed the variables for this step
+                        print("Entering variable: %s" % vartab[enter])
+                        print("Leaving variable: %s\n" % basic[leave])
+                        basic[leave] = vartab[enter]  # Update basic variables
+                        numpivots += 1
+            # Optimum
             else:
                 if not unbounded:
-                    optimum = True
-    if optimum:
-        print("---- Optimum Solution ----")
+                    if infeasible:
+                        infeasible = False
+                        print("---- SUB-OPTIMAL ----")  # optimal for artificial variable problem
+                        show_tab(sim, vartab, basic, step, precision)
+                        step += 1
+                        print("Drop x!, return to original problem")
+                        print("Write objective function in terms of nonbasic variables\n")
+
+                        # Return to original problem (delete x! column, and put original obj back)
+                        vartab = vartab[1:]
+                        i = 0
+                        while i < len(sim) - 1:
+                            sim[i] = sim[i][1:]
+                            i += 1
+                        sim[-1] = original_obj
+                        i = 0
+                        while i < numvar:
+                            if sim[-1][i]:  # if not zero
+                                if vartab[i] in basic:  # and if was basic variable
+                                    m = basic.index(vartab[i])
+                                    pivot = sim[-1][i]
+                                    n = 0
+                                    while n < len(sim[-1]):
+                                        sim[-1][n] -= pivot * sim[m][n]
+                                        n += 1
+                            i += 1
+
+
+                    else:
+                        optimum = True
+
+    # Show last tableau
+    if unbounded:
+        print("---- UNBOUNDED ----")
+        show_tab(sim, vartab, basic, step, precision)
+    elif optimum:
+        print("---- OPTIMAL ----")
         show_tab(sim, vartab, basic, step, precision)
 
     end_algorithm = time.time()
 
-    # --- PRINT REPORT ---
+    # --- PRINT RESULTS ---
     if not errors:
         print("--- Final Results ---")
         print("Number of decision variables: %s" % numvar)
         print("Number of constraints: %s" % numconst)
         print("Maximize:")
-        print(make_pretty(objective))
+        print(" %s" % make_pretty(objective))
         print("Subject to:")
-        i = 1
         for const in constraints:
-            print("#%d: %s" % (i, make_pretty(const)))
-            i += 1
+            print(" %s" % make_pretty(const))
         print("Objective value = %d" % sim[-1][-1])
         corner = []
         for var in vartab[:-2]:
@@ -344,20 +436,17 @@ def simplex(objective, variables, *constraints):
                 corner.append(str(val))
             else:
                 corner.append("0")
-        print("Final Corner")
-        print("(%s):" % ", ".join(vartab[:numvar]))
+        print("Final Corner (%s):" % ", ".join(vartab[:numvar]))
         print("(%s)" % ", ".join(corner[:numvar]))
-        print("Slacks")
-        print("(%s)" % ", ".join(vartab[numvar:numvar + numconst]))
+        print("Slacks (%s):" % ", ".join(vartab[numvar:numvar + numconst]))
         print("(%s)" % ", ".join(corner[numvar:numvar + numconst]))
-        print("Number of pivots: %d" % (step - 1))
-        print("Simplex time = %f ms" % (1000 * (end_algorithm - start_algorithm)))
+        print("Number of pivots: %d" % (numpivots))
+        print("Simplex execution time = %f ms" % (1000 * (end_algorithm - start_algorithm)))
         print("Program execution time = %f ms" % (1000 * (time.time() - start_time)))
     else:
         print("Errors:")
         for err in errors:
             print(err)
         print("Program execution time = %f ms" % (1000 * (time.time() - start_time)))
-
 
 # DRAFT
