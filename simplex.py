@@ -1,9 +1,16 @@
+<<<<<<< HEAD
 # Simplex algorithm pivoting tool by Abdulla Almansoori 2015 (C)
 # Use this as a test input: simplex('x + y', 'x y', '2x + y <= 4', 'x + 2y <= 4') WORKS
 # or this simplex("x + y - z", "x y z xyz", "2x + y - xyz <= 4", "x + 2y +10*z <= 4", "5>= .7 y - xyz") WORKS
 # or this simplex("3xcococo+5x22", "xcococo x22", "xcococo<=4", "2x22<=12", "3*xcococo+2x22<=18") WORKS
 # or simplex('4x1+3x2', "x1 x2", "2x1+3x2<=6", "-3x1+2x2<=3", "2x2<=5", "2x1+x2<=4") WORKS
 # or simplex('-2x1-x2', "x1 x2", "-x1+x2<=-1", "-x1-2x2<=-2", "x2<=1") INFEASIBLE ORIGIN WORKS
+=======
+# Simplex algorithm pivoting tool by Abdulla Almansoori
+# Use this as a test input: simplex('x + y', 'x y', '2x + y <= 4', 'x + 2y <= 4')
+# or this simplex("x + y - z", "x y z xyz", "2x + y - xyz <= 4", "x + 2y +10*z <= 4", "5>= .7 y - xyz")
+# or this simplex("3xcococo+5x22", "xcococo x22", "xcococo<=4", "2x22<=12", "3*xcococo+2x22<=18")
+>>>>>>> origin/master
 
 import time
 import re
