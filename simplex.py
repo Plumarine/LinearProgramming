@@ -1,15 +1,58 @@
 # Simplex algorithm pivoting tool by Abdulla Almansoori 2015 (C)
-# Use this as a test input: simplex('x + y', 'x y', '2x + y <= 4', 'x + 2y <= 4') WORKS
-# or this simplex("x + y - z", "x y z xyz", "2x + y - xyz <= 4", "x + 2y +10*z <= 4", "5>= .7 y - xyz") WORKS
-# or this simplex("3xcococo+5x22", "xcococo x22", "xcococo<=4", "2x22<=12", "3*xcococo+2x22<=18") WORKS
-# or simplex('4x1+3x2', "x1 x2", "2x1+3x2<=6", "-3x1+2x2<=3", "2x2<=5", "2x1+x2<=4") WORKS
-# or simplex('-2x1-x2', "x1 x2", "-x1+x2<=-1", "-x1-2x2<=-2", "x2<=1") INFEASIBLE ORIGIN WORKS
 
 import time
 import re
 
 
-def simplex(objective, variables, *constraints):
+def simplex(variables, objective, *constraints, **options):
+    """
+    This function shows each step of the simplex algorithm in tableau form,
+    and then shows the final results of the optimum solution.
+
+    INPUT: First you should only use strings as your input. Second, please make sure you follow the correct syntax when
+        inputting the expressions. A correct syntax is as following:
+        1) All variables should be declared in the first input as a string. They should be separated by spaces only.
+        2) Variables can be alphanumeric with underscores, BUT should start with a letter.
+        3) The constraints should include either <= or >= (not <, >, or =).
+        4) You can use * to multiply a number with a variable, but not two numbers together (5*x ok, 5*5 no)
+        5) You can use decimal numbers however you want (1.5, 1., .5 will all work)
+        6) Of course, no floating or multiple symbols allowed (it's common sense, no **, +-, --, +.-, -*, 5+, x+y*, etc)
+        7) You can use spaces however you want.
+
+        For the options, you can choose the following:
+            1) maximize: if true, maximize, if false, minimize. (Note -1 is considered true so it means maximize)
+            2) precision: any integer between 0 and 6. Otherwise, it will be converted to integer, or defaulted to 3
+            LATER... 3) dual: do the simplex for the dual
+
+    PROCESS: The whole process of the simplex will be shown in multiple tableau, and steps taken are explained.
+
+    OUTPUT: None
+
+    EXAMPLES: Here are some examples to see how the function works:
+        1) simplex('x y', 'x + y', '2x + y <= 4', 'x + 2y <= 4')
+        2) simplex("x y z xyz", "x + y - z", "2x + y - xyz <= 4", "x + 2y +10*z <= 4", "5>= .7 y - xyz")
+        3) simplex("x1 x2", '4x1+3x2', "2x1+3x2<=6", "-3x1+2x2<=3", "2x2<=5", "2x1+x2<=4")
+        4) simplex("xxxxxx x22", "3xxxxxx+5x22", "xxxxxx<=4", "2x22<=12", "3*xxxxxx+2x22<=18")
+        5) simplex("x1 x2", '2x1+x2', "-x1+x2<=-1", "-x1-2x2<=-2", "x2<=1", maximize = 0, precision = 2)
+        6)...
+
+    PARAMETERS:
+    :param variables: You have to declare all your variables here
+    :param objective: The objective function that you want to maximize/minimize
+    :param constraints: Write as many constraints as you want here, each as a string as a separate input
+    :param options: You can edit some optional parameters in the function, like max or min, the precision of output, etc
+    :return: Nothing
+
+
+    """
+    """
+    :param variables: You have to declare all your variables here
+    :param objective: The objective function that you want to maximize/minimize
+    :param constraints: Write as many constraints as you want here, each as a string as a separate input
+    :param options: You can edit some optional parameters in the function, like max or min, the precision of output, etc
+    :return: Nothing
+    """
+
     # --- INITIALIZATION ---
     start_time = time.time()
     # Initialize functions
@@ -59,7 +102,7 @@ def simplex(objective, variables, *constraints):
             firstrow += "|" + ls * " " + str(allvars[n]) + rs * " "
             n += 1
 
-        print("Tableau Step %d" % step)
+        print("Tableau #%d" % step)
         print(firstrow)
         m = 0
         while m < msize:
@@ -123,7 +166,19 @@ def simplex(objective, variables, *constraints):
     numvar = len(variables)
     exprlist = list(constraints)
     exprlist.append(objective)
-    precision = 3  # Notice this should be an option
+    precision = options.get("precision", 3)
+    if is_number(precision):
+        if precision < 0 or precision > 6:
+            precision = 3
+        else:
+            precision = int(precision)
+    else:
+        precision = 3
+    optimmode = options.get("maximize", 1)
+    if optimmode:
+        optimmode = 1
+    else:
+        optimmode = -1
     basic = []
     i = 1
     while i < numconst + 1:
@@ -137,11 +192,11 @@ def simplex(objective, variables, *constraints):
     sim = [[0 for x in range(2+numvar+numconst)] for x in range(1+numconst)]
 
     # Rid expressions of all spaces
-    objective = objective.replace(' ', '')
     i = 0
-    for const in constraints:
-        constraints[i] = const.replace(' ', '')
+    while i < numconst + 1:
+        exprlist[i] = exprlist[i].replace(' ', '')
         i += 1
+
     # --- CHECKING INPUT ---
 
     # Check decision variables input
@@ -179,16 +234,18 @@ def simplex(objective, variables, *constraints):
             err = False
             objc = 1
             if i == numconst:  # To make objective function values the opposite for the tableau
-                objc = -1
+                objc = -1 * optimmode  # the same if maximize, the opposite if minimize
 
             # Check symbols in input
             if i == numconst:
                 if not re.match(objcheck, row):
                     errors.append("Objective function => unknown symbols used")
+                    i += 1
                     continue
             else:
                 if not re.match(constcheck, row):
                     errors.append("Constraint #%d => unknown symbols used" % (i + 1))
+                    i += 1
                     continue
 
             row += '$'  # Mark end of expression
@@ -261,6 +318,7 @@ def simplex(objective, variables, *constraints):
                     errors.append("Objective function => syntax error")
                 else:
                     errors.append("Constraint #%d => syntax error" % (i + 1))
+
             i += 1
 
     # --- START SIMPLEX ---
@@ -424,7 +482,7 @@ def simplex(objective, variables, *constraints):
         print("Subject to:")
         for const in constraints:
             print(" %s" % make_pretty(const))
-        print("Objective value = %d" % sim[-1][-1])
+        print("Objective value = %d" % (optimmode * sim[-1][-1]))
         corner = []
         for var in vartab[:-2]:
             if var in basic:
@@ -442,11 +500,11 @@ def simplex(objective, variables, *constraints):
         print("(%s)" % ", ".join(corner[numvar:numvar + numconst]))
         print("Number of pivots: %d" % (numpivots))
         print("Simplex execution time = %f ms" % (1000 * (end_algorithm - start_algorithm)))
-        print("Program execution time = %f ms" % (1000 * (time.time() - start_time)))
+        print("Function execution time = %f ms" % (1000 * (time.time() - start_time)))
     else:
         print("Errors:")
         for err in errors:
             print(err)
-        print("Program execution time = %f ms" % (1000 * (time.time() - start_time)))
+        print("Function execution time = %f ms" % (1000 * (time.time() - start_time)))
 
 # DRAFT
