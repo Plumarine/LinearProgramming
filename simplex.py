@@ -283,10 +283,10 @@ def simplex(variables, objective, *constraints, **options):
                             coeff += '1'
                         if is_number(coeff):
                             if not var:  # Variable is empty, meaning it's a number
-                                sim[i][-1] = -1 * side * objc * float(coeff)
+                                sim[i][-1] += -1 * side * objc * float(coeff)
                             elif var in variables:  # Check if variable declared
                                 x = variables.index(var)
-                                sim[i][x] = side * objc * float(coeff)
+                                sim[i][x] += side * objc * float(coeff)
                             else:
                                 if i == numconst:
                                     errors.append("Objective function => undeclared variable %s" % var)
@@ -400,8 +400,9 @@ def simplex(variables, objective, *constraints, **options):
                             if unbounded:
                                 unbounded = False
                         else:
-                            ratio = 0
-                        if maxratio < ratio:
+                            ratio = -1
+
+                        if maxratio <= ratio:
                             maxratio = ratio
                             leave = m
                         m += 1
